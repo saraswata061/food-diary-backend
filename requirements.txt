@@ -2,7 +2,6 @@ asn1crypto==0.24.0
 attrs==17.4.0
 Automat==0.6.0
 cassandra-driver==3.21.0
-cassandra-pylib==0.0.0
 certifi==2018.1.18
 chardet==3.0.4
 Click==7.0
@@ -12,9 +11,8 @@ cql==1.4.0
 cqlsh==5.0.4
 cryptography==2.1.4
 enum34==1.1.6
-futures==3.3.0
+futures==3.1.1
 geomet==0.1.2
-gyp==0.1
 hyperlink==17.3.1
 idna==2.6
 incremental==16.10.1
@@ -22,10 +20,9 @@ ipaddress==1.0.17
 keyring==10.6.0
 keyrings.alt==3.0
 linecache2==1.0.0
-mysql-connector-python==2.1.6
-mysql-utilities==1.6.4
+mysql-connector-python==8.0.22
 mysqlclient==1.3.10
-PAM==0.4.2
+PAM==0.1.4
 paramiko==2.0.0
 Parsley==1.2
 pexpect==4.2.1
@@ -34,12 +31,12 @@ pyasn1==0.4.2
 pyasn1-modules==0.2.1
 pycairo==1.16.2
 pycrypto==2.6.1
-pygobject==3.26.1
-pyliblzma==0.5.3
+pygobject==3.27.0
 PyMySQL==0.10.1
 pyodbc==4.0.17
 pyOpenSSL==17.5.0
 pyserial==3.4
+sphinz==3.2.1
 pysqlite==2.7.0
 pyxdg==0.25
 requests==2.18.4
