@@ -6,8 +6,6 @@ chardet==3.0.4
 Click==7.0
 colorama==0.3.7
 constantly==15.1.0
-cql==1.4.0
-cqlsh==5.0.4
 cryptography==2.1.4
 futures==3.3.0
 geomet==0.1.2
