@@ -1,8 +1,6 @@
 asn1crypto==0.24.0
 attrs==17.4.0
 Automat==0.6.0
-cassandra-driver==3.21.0
-cassandra-pylib==0.0.0
 certifi==2018.1.18
 chardet==3.0.4
 Click==7.0
