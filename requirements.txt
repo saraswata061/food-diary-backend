@@ -15,7 +15,6 @@ ipaddress==1.0.17
 keyring==10.6.0
 keyrings.alt==3.0
 linecache2==1.0.0
-mysql-connector-python==2.1.6
 mysql-utilities==1.6.4
 mysqlclient==1.3.10
 PAM==0.4.2
