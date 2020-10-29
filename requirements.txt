@@ -45,7 +45,7 @@ six==1.14.0
 thrift==0.13.0
 traceback2==1.4.0
 Twisted==17.9.0
-txsocksx==0.0.0
+txsocksx==0.0.1
 unittest2==1.1.0
 urllib3==1.22
 zope.interface==4.3.2
