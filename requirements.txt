@@ -35,7 +35,7 @@ PyMySQL==0.10.1
 pyodbc==4.0.17
 pyOpenSSL==17.5.0
 pyserial==3.4
-sphinz==3.2.1
+sphinx==3.2.1
 pysqlite==2.7.0
 pyxdg==0.25
 requests==2.18.4
