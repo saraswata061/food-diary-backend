@@ -1,10 +1,15 @@
 import urllib
 from rest_framework.decorators import api_view, permission_classes
-from user.models import Person;
+from user.models import Person, PersonSymptome, PersonHandicap;
 from user.models import StripePaymentDetail;
 from django.http import JsonResponse
 from user.models import ClientProfile;
 from user.models import CoachProfile;
+from user.models import UserChatHistory, FAQ, FAQAnswer;
+from receipe.models import Lebensmittel, Handicap, Symptom
+from receipe.views import getHandcapFoodSuggestion
+from django.db.models import Q
+from django.core.paginator import Paginator
 import uuid
 from django.http import HttpResponseRedirect
 from django.views import View
@@ -19,6 +24,8 @@ import hashlib
 import json
 import  os
 import re
+from datetime import date
+from datetime import datetime
 from django.middleware.csrf import get_token
 
 
@@ -28,35 +35,238 @@ def csrf(request):
     return JsonResponse({'csrfToken': get_token(request)})
 
 
+@api_view(["POST"])
+def deleteFAQ(request,faqid):
+    faq = FAQ.objects.get(id=faqid)
+    faqAnswer = FAQAnswer.objects.get(faq=faq)
+    faqAnswer.delete()
+    faq.delete()
+
+
+
+    response = JsonResponse({}, safe=False);
+
+    return response
+
+@api_view(["GET"])
+def getAllFAQ(request):
+    faqs = FAQ.objects.all()
+    pageno = request.GET.get('page', 1)
+    paginator = Paginator(faqs, 5)
+    faqs = paginator.page(pageno)
+
+    fqResult = {}
+    fqResult["pages"] = paginator.num_pages;
+    fqResult["count"] = paginator.count;
+    faqList = []
+
+    for faq in faqs:
+        faqAnswer = FAQAnswer.objects.get(faq=faq)
+        faqDict = createFAQ(faq, faqAnswer)
+        faqList.append(faqDict)
+    fqResult["faqs"] = faqList;
+
+    response = JsonResponse(fqResult, safe=False);
+
+    return response
+
+@api_view(["GET"])
+def getFAQById(request, faqid):
+    faq = FAQ.objects.get(id=faqid)
+    faqAnswer = FAQAnswer.objects.get(faq=faq)
+    faqObject =createFAQ(faq, faqAnswer)
+
+
+    response = JsonResponse(faqObject, safe=False);
+    # response.set_cookie('fdiarysess', cookie)
+
+    return response
+
+
+def createFAQ(faq,faqAnswer):
+    faqObject = {
+        "question": faq.question,
+        "private": faq.private,
+        "answer": faqAnswer.answer,
+        "id": faq.id
+    }
+    return faqObject;
+
+
+@api_view(["POST"])
+def saveFAQ(request):
+    finaldata = {}
+    requestdata = dict(request.POST)
+    for index in requestdata:
+        finaldata[index] = requestdata[index]
+
+    if int(finaldata.get("id")[0]) != 0:
+        faq = FAQ.objects.get(id=finaldata["id"][0])
+        setattr(faq, "question", finaldata["question"][0])
+        setattr(faq, "private", finaldata["private"][0])
+
+        if finaldata.get('answer'):
+            faqAnswer = FAQAnswer.objects.get(faq=faq)
+            faqAnswer.answer = finaldata.get('answer')[0]
+            faqAnswer.save()
+        faq.save()
+
+    else:
+        faq = FAQ(
+            question=finaldata["question"][0],
+            private=finaldata["private"][0]
+        )
+
+        faq.save()
+
+
+
+        if finaldata.get('answer'):
+            faqAnswer = FAQAnswer(faq=faq,answer=finaldata.get('answer')[0])
+            faqAnswer.save()
+
+
+    response = JsonResponse({}, safe=False);
+    # response.set_cookie('fdiarysess', cookie)
+
+    return response
+
+
 def getCurrentUserInfo(request):
     userInfo = {}
     userInfo['email'] = request.session['email']
     userInfo['password'] = request.session['password']
     userInfo['user_id'] = request.session['user_id']
     userInfo['authenticated'] = request.session['authenticated']
+    userInfo['role'] = request.session['role']
     return userInfo;
 
 
 @api_view(["GET"])
 def user(request,userid):
-    person = Person.objects.get(id=userid)
-    personDict = {};
-    personDict["email"] = person.email;
-    personDict["password"] = person.pwd;
-    personDict["is_user"] = person.is_user;
-    personDict["is_coach"] = person.is_coach;
-    personDict["vname"] = person.vname;
-    personDict["nname"] = person.nname;
-
-
+    personDict = generateUserInfo(userid)
     response = JsonResponse(personDict,safe=False);
     #response.set_cookie('fdiarysess', cookie)
 
     return response
 
+@api_view(["POST"])
+def appendUserChat(request):
+    chatMessage = request.POST.get("chat_message")
+    personIdOne = request.POST.get("person_id_one")
+    personIdTwo = request.POST.get("person_id_two") #currentuser
+    today = date.today()
+    todayDateTime = datetime.combine(date.today(), datetime.min.time())
+    if personIdOne:
+        personOne = Person.objects.get(id=int(personIdOne))
+        personTwo = Person.objects.get(id=int(personIdTwo))
+
+        chatObject = {}
+        chatObject['user_id'] = personIdTwo;
+        chatObject['message'] = chatMessage;
+
+        messageList = []
+
+        userChats = UserChatHistory.objects.filter(Q(date=today ,personIdOne=personOne, personIdTwo=personTwo) | Q(date=today ,personIdOne=personTwo, personIdTwo=personOne))
+        userChatObject = None
+        for userChat in userChats:
+            userChatObject = userChat
+            chatMessageJSON = userChat.chatMessages
+            messageList = json.loads(chatMessageJSON)
+
+        if(len(messageList) == 0):
+            messageList.append(chatObject)
+            messageListJSON = json.dumps(messageList)
+            userHistory = UserChatHistory(date=today, personIdOne=personOne, personIdTwo=personTwo,
+                                          chatMessages=messageListJSON,id=uuid.uuid1())
+            userHistory.save()
+        else:
+            messageList.append(chatObject)
+            messageListJSON = json.dumps(messageList)
+            userObj = UserChatHistory.objects.get(id=userChatObject.id)
+            setattr(userObj, "chatMessages", messageListJSON)
+            userObj.save()
+
+
+
+
+
+
+
+    response = JsonResponse({},safe=False);
+    #response.set_cookie('fdiarysess', cookie)
+
+    return response
+
+
 @api_view(["GET"])
-def getCurrentUer(request):
-    person = Person.objects.get(id=getCurrentUserInfo(request)['user_id'])
+def searchUser(request):
+    email = request.GET.get("email","")
+    country = request.GET.get("country", "")
+    description = request.GET.get("description", "")
+    role = request.GET.get("role", "")
+    users = []
+    users = Person.objects.filter()
+    if len(email):
+        users = users.filter(email__contains=email)
+    if len(description):
+        users = users.filter(description__contains=description)
+    if len(country) > 0:
+        users = users.filter(Q(client_profile__land__contains=country) | Q(coach_profile__land__contains=country))
+
+
+    userList = []
+    userResult = {}
+
+    for user in users:
+        if role == 'coach':
+            if user.is_coach == True:
+                continue
+        if role == 'client':
+            if user.is_user == True:
+                continue
+        userDict = createPersonResult(user)
+        userList.append(userDict)
+    userResult["users"] = userList;
+    userResult["count"] = len(userList);
+    response = JsonResponse(userResult, safe=False);
+    # response.set_cookie('fdiarysess', cookie)
+
+    return response
+
+@api_view(["POST"])
+def getUserChatMessages(request):
+    personIdOne = request.POST.get("person_id_one")
+    personIdTwo = request.POST.get("person_id_two")  # currentuser
+    today = date.today()
+    messageList = []
+    if personIdOne:
+        personOne = Person.objects.get(id=int(personIdOne))
+        personTwo = Person.objects.get(id=int(personIdTwo))
+        userChats = UserChatHistory.objects.filter(
+            Q(date=today, personIdOne=personOne, personIdTwo=personTwo) | Q(date=today, personIdOne=personTwo,
+                                                                            personIdTwo=personOne))
+
+        for userChat in userChats:
+            chatMessageJSON = userChat.chatMessages
+            messageList = json.loads(chatMessageJSON)
+
+        finalResp = {}
+        finalResp['userdata'] = {
+            personTwo.id: createPersonResult(personTwo),
+            personOne.id: createPersonResult(personOne),
+        }
+        finalResp['messagelist'] = messageList
+
+
+        response = JsonResponse(finalResp,safe=False);
+        #response.set_cookie('fdiarysess', cookie)
+
+        return response
+
+
+def generateUserInfo(user_id):
+    person = Person.objects.get(id=user_id)
     personDict = {};
     personDict["user_id"] = person.id;
     personDict["email"] = person.email;
@@ -67,21 +277,68 @@ def getCurrentUer(request):
     personDict["nname"] = person.nname;
     personDict["profilepic"] = ""
     personDict["price"] = ""
+    personDict["description"] = person.description;
 
+    personDict["symptomList"] = []
+    personDict["symptomNameList"] = []
+    personSymptoms = PersonSymptome.objects.filter(personId=person)
+    for personSymptom in personSymptoms:
+        if personSymptom.symptomeId.id:
+            personDict["symptomList"].append(personSymptom.symptomeId.id)
+            personDict["symptomNameList"].append(personSymptom.symptomeId.namen)
 
-    if person.is_user == 1 and person.is_coach == 0:
-        personProfile = ClientProfile.objects.filter(person_id=getCurrentUserInfo(request)['user_id']).first()
+    personDict["handicapList"] = []
+    personDict["handicapNameList"] = []
+    personDict["handicapGoodFoodList"] = []
+    personDict["handicapBadFoodList"] = []
+    personHandicaps = PersonHandicap.objects.filter(personId=person)
+    for personHandicap in personHandicaps:
+        if personHandicap.handicapId.id:
+            personDict["handicapList"].append(personHandicap.handicapId.id)
+            personDict["handicapNameList"].append(personHandicap.handicapId.namen)
+            personDict["handicapGoodFoodList"] = personDict["handicapGoodFoodList"] + \
+                                                 getHandcapFoodSuggestion(personHandicap.handicapId.id)['goodFoodList']
+            personDict["handicapBadFoodList"] = personDict["handicapGoodFoodList"] + \
+                                                getHandcapFoodSuggestion(personHandicap.handicapId.id)['badFoodList']
+
+    if person.is_user == 1 and person.is_coach == 0 :
+        personDict["role"] = "client";
+        personProfile = ClientProfile.objects.filter(person_id=user_id).first()
         if personProfile:
             personDict["profilepic"] = personProfile.profile_pic;
-    elif person.is_user == 0 and person.is_coach == 1:
-        coachProfile = CoachProfile.objects.filter(person_id=getCurrentUserInfo(request)['user_id']).first()
+            personDict["mobno"] = personProfile.telefon;
+            personDict["height"] = personProfile.groesse;
+            personDict["weight"] = personProfile.gewicht;
+            personDict["zipcode"] = personProfile.plz;
+            personDict["country"] = personProfile.land;
+            personDict["region"] = personProfile.ort;
+            personDict["gender"] = personProfile.gender;
+            personDict["smoke"] = bool(personProfile.smoking);
+            personDict["pregnant"] = bool(personProfile.pregnant);
+            personDict["breastfeeding"] = bool(personProfile.stillen);
+            personDict["menopause"] = personProfile.menopause;
+            personDict["pregnant"] = personProfile.pregnant;
+            personDict["jobactivity"] = personProfile.job_activity;
+            personDict["sportingactivity"] = personProfile.sport_activity;
+            personDict["bday"] = personProfile.bday
+
+    elif (person.is_user == 0 or person.is_user == 1)  and person.is_coach == 1:
+        personDict["role"] = "coach";
+        coachProfile = CoachProfile.objects.filter(person_id=user_id).first()
         if coachProfile:
             personDict["profilepic"] = coachProfile.profile_pic;
             personDict["price"] = coachProfile.price;
+            personDict["country"] = coachProfile.land;
+            personDict["region"] = coachProfile.ort;
+            personDict["bday"] = coachProfile.bday
+    return personDict
 
 
+@api_view(["GET"])
+def getCurrentUer(request):
+    personDict = generateUserInfo(getCurrentUserInfo(request)['user_id'])
     response = JsonResponse(personDict,safe=False);
-    #response.set_cookie('fdiarysess', cookie)
+        #response.set_cookie('fdiarysess', cookie)
 
     return response
 
@@ -93,26 +350,7 @@ def getAllUser(request):
     personlList = []
 
     for person in persons:
-        personDict = {};
-        personDict["email"] = person.email;
-        personDict["id"] = person.id;
-        personDict["password"] = person.pwd;
-        personDict["is_user"] = person.is_user;
-        personDict["is_coach"] = person.is_coach;
-        personDict["vname"] = person.vname;
-        personDict["nname"] = person.nname;
-
-        if person.is_user == 1 and person.is_coach == 0:
-            personProfile = ClientProfile.objects.filter(person_id=person.id).first()
-            if personProfile:
-                personDict["profilepic"] = personProfile.profile_pic;
-        elif person.is_user == 0 and person.is_coach == 1:
-            coachProfile = CoachProfile.objects.filter(person_id=person.id).first()
-            if coachProfile:
-                personDict["profilepic"] = coachProfile.profile_pic;
-                personDict["price"] = coachProfile.price;
-
-
+        personDict = createPersonResult(person)
 
         if(role == "all"):
             personlList.append(personDict)
@@ -134,6 +372,56 @@ def getAllUser(request):
 
     return response
 
+
+
+def createPersonResult(person):
+    personDict = {};
+    personDict["email"] = person.email;
+    personDict["id"] = person.id;
+    personDict["password"] = person.pwd;
+    personDict["is_user"] = person.is_user;
+    personDict["is_coach"] = person.is_coach;
+    personDict["vname"] = person.vname;
+    personDict["nname"] = person.nname;
+    personDict["description"] = person.description;
+
+    if person.is_user == 1 and person.is_coach == 0:
+        personProfile = ClientProfile.objects.filter(person_id=person.id).first()
+        if personProfile:
+            personDict["profilepic"] = personProfile.profile_pic;
+    elif person.is_user == 0 and person.is_coach == 1:
+        coachProfile = CoachProfile.objects.filter(person_id=person.id).first()
+        if coachProfile:
+            personDict["profilepic"] = coachProfile.profile_pic;
+            personDict["price"] = coachProfile.price;
+
+    return personDict
+
+@api_view(["GET"])
+def searchPerson(request):
+    email = request.GET.get("email","")
+
+    persons = None
+    persons = Person.objects.filter()
+    if len(email):
+        persons = persons.filter(email__contains=email)
+
+    personlList = []
+    personResult = {}
+
+    for person in persons:
+        personDict = createPersonResult(person)
+        personlList.append(personDict)
+    personResult["persons"] = personlList;
+    personResult["count"] = len(personlList);
+    response = JsonResponse(personResult, safe=False);
+    # response.set_cookie('fdiarysess', cookie)
+
+    return response
+
+
+
+
 @api_view(["GET"])
 def deleteUser(request,userid):
     person = Person.objects.get(id=userid)
@@ -150,12 +438,26 @@ def updateUserProfile(request):
     person = Person.objects.get(id=getCurrentUserInfo(request)['user_id'])
     person.vname = request.POST.get("firstname")
     person.nname = request.POST.get("lastname")
+    finaldata = {}
+    finaldata["symptoms"] = []
+    finaldata["allergies"] = []
+    requestdata = dict(request.POST)
+    for index in requestdata:
+        indexsplit = index.split("|")
+        if len(indexsplit) > 1:
+            if indexsplit[0] == "symptoms":
+                finaldata["symptoms"].append(requestdata["symptoms" + "|" + indexsplit[1]][0])
+            if indexsplit[0] == "allergies":
+                finaldata["allergies"].append(requestdata["allergies" + "|" + indexsplit[1]][0])
+        else:
+            finaldata[index] = requestdata[index]
 
     person.save()
     personProfile = None
-    profileType = "client"
+    profileType = "coach"
     if person.is_user == 1 and person.is_coach == 0:
         personProfile = ClientProfile.objects.filter(person_id=getCurrentUserInfo(request)['user_id']).first()
+        profileType = "client"
     if person.is_user == 0 and person.is_coach == 1:
         profileType = "coach"
         personProfile = CoachProfile.objects.filter(person_id=getCurrentUserInfo(request)['user_id']).first()
@@ -164,7 +466,25 @@ def updateUserProfile(request):
     profilePic = request.FILES.get("profilepic")
 
     image_path = None
+
+
     if profileType == "client":
+        if finaldata.get('height'):
+            try:
+                value = int(finaldata.get('height')[0])
+            except ValueError:
+                return JsonResponse({"messageList": ["Height can only be integer"]}, safe=False, status=500);
+        if finaldata.get('weight'):
+            try:
+                value = float(finaldata.get('weight')[0])
+            except ValueError:
+                return JsonResponse({"messageList": ["Weight can only be integer or float"]}, safe=False, status=500);
+
+
+
+
+
+
         if personProfile:
             personProfileObj = ClientProfile.objects.get(id=personProfile.id)
             if profilePic:
@@ -175,7 +495,7 @@ def updateUserProfile(request):
                 except:
                     pass
                 personProfileObj.profile_pic = imagename
-            personProfileObj.save()
+            #personProfileObj.save()
         else:
             personProfileObj = ClientProfile(person_id=person)
             if profilePic:
@@ -183,7 +503,61 @@ def updateUserProfile(request):
                 image_path = str(settings.BASE_DIR) + '/media/' + imagename
                 personProfileObj.profile_pic = imagename
             personProfileObj.save()
+        if finaldata.get('symptoms'):
+            if len(finaldata.get('symptoms')) > 0:
+                personSymptoms = PersonSymptome.objects.filter(personId=person)
+                PersonSymptome.objects.filter(personId=person).delete()
+                for key in finaldata["symptoms"]:
+                    if key != "undefined":
+                        symptom = Symptom.objects.get(id=int(key))
+                        personSymptom = PersonSymptome(personId=person, symptomeId=symptom)
+                        personSymptom.save()
+
+        if finaldata.get('allergies'):
+            if len(finaldata.get('allergies')) > 0:
+                rezepteHandicaps = PersonHandicap.objects.filter(personId=person)
+                PersonHandicap.objects.filter(personId=person).delete()
+                for key in finaldata["allergies"]:
+                    if key != "undefined":
+                        handicap = Handicap.objects.get(id=int(key))
+                        personHandicap = PersonHandicap(personId=person, handicapId=handicap)
+                        personHandicap.save()
+
+
+        if finaldata.get('zipcode'):
+            personProfileObj.plz = finaldata['zipcode'][0]
+        if finaldata.get('mobno'):
+            personProfileObj.telefon = finaldata['mobno'][0]
+        if finaldata.get('height'):
+            personProfileObj.groesse = finaldata['height'][0]
+        if finaldata.get('weight'):
+            personProfileObj.gewicht = finaldata['weight'][0]
+        if finaldata.get('country'):
+            personProfileObj.land = finaldata['country'][0]
+        if finaldata.get('region'):
+            personProfileObj.ort = finaldata['region'][0]
+        if finaldata.get('gender'):
+            personProfileObj.gender = finaldata['gender'][0]
+        if finaldata.get('smoke'):
+            personProfileObj.smoking = True if (finaldata['smoke'][0] == "true") else False
+        if finaldata.get('pregnant'):
+            personProfileObj.pregnant = True if (finaldata['pregnant'][0] == "true") else False
+        if finaldata.get('jobactivity'):
+            personProfileObj.job_activity = finaldata['jobactivity'][0]
+        if finaldata.get('sportingactivity'):
+            personProfileObj.sport_activity = finaldata['sportingactivity'][0]
+        if finaldata.get('breastfeeding'):
+            personProfileObj.stillen =  True if (finaldata['breastfeeding'][0] == "true") else False
+        if finaldata.get('bday'):
+            personProfileObj.bday = finaldata['bday'][0]
+        personProfileObj.save()
+
     elif profileType == "coach":
+        if finaldata.get('price'):
+            try:
+                value = int(finaldata.get('price')[0])
+            except ValueError:
+                return JsonResponse({"messageList": ["Price must be integer"]}, safe=False, status=500);
         if personProfile:
             personProfileObj = CoachProfile.objects.get(id=personProfile.id)
             if profilePic:
@@ -204,7 +578,18 @@ def updateUserProfile(request):
                 personProfileObj.profile_pic = imagename
             personProfileObj.price = request.POST.get("price")
             personProfileObj.save()
+        if finaldata.get('country'):
+            personProfileObj.land = finaldata['country'][0]
+        if finaldata.get('region'):
+            personProfileObj.ort = finaldata['region'][0]
+        if finaldata.get('bday'):
+            personProfileObj.bday = finaldata['bday'][0]
 
+        personProfileObj.save()
+    if finaldata.get('description'):
+        person.description = finaldata['description'][0]
+
+    person.save()
     if image_path:
         with open(image_path, 'wb+') as f:
             for chunk in profilePic.chunks():
@@ -219,11 +604,13 @@ def updateUserProfile(request):
 
 @api_view(["POST"])
 def createUser(request):
-
     firstname = request.data['firstname']
+    id = request.data['userid']
     lastname = request.data['lastname']
     email = request.data['email']
-    password = hashlib.md5(request.data['password'].encode('utf-8')).hexdigest()
+    password = ""
+    if request.data['password'].encode('utf-8').strip() != "":
+        password = hashlib.md5(request.data['password'].encode('utf-8')).hexdigest()
 
     if(request.data['role'] == "client"):
         is_user = True;
@@ -234,9 +621,23 @@ def createUser(request):
     if (request.data['role'] == "coach"):
         is_user = False;
         is_coach = True;
+    if id == 0:
+        person = Person( vname=firstname,nname=lastname,email=email,pwd=password, is_user=is_user,is_coach=is_coach)
+        person.save()
+    else:
+        person = Person.objects.get(id=id)
+        if firstname.strip() != "":
+            setattr(person, "vname", firstname)
+        if lastname.strip() != "":
+            setattr(person, "nname", lastname)
+        if email.strip() != "":
+            setattr(person, "email", email)
+        if password.strip() != "":
+            setattr(person, "pwd", password)
+        setattr(person, "is_user", is_user)
+        setattr(person, "is_coach", is_coach)
 
-    person = Person( vname=firstname,nname=lastname,email=email,pwd=password, is_user=is_user,is_coach=is_coach)
-    person.save()
+        person.save()
 
     response = JsonResponse({"id" : person.id},safe=False);
     #response.set_cookie('fdiarysess', cookie)

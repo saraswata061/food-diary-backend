@@ -45,6 +45,15 @@ class FoodDiaryAuthentication(authentication.BaseAuthentication):
                 request.session['password'] = person.pwd
                 request.session['user_id'] = person.id
                 request.session['authenticated'] = True
+                role = "";
+                if person.is_user == 1 and person.is_coach == 0:
+                    role = "client";
+                if person.is_user == 0 and person.is_coach == 1:
+                    role = "coach";
+                if person.is_user == 1 and person.is_coach == 1:
+                    role = "admin";
+                request.session['role'] = role
+
             except:
                 raise exceptions.AuthenticationFailed("Authentication Failed")
 

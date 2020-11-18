@@ -18,6 +18,7 @@ from django.urls import path
 from django.conf.urls import url, include
 from user import views as user_views
 from receipe import views as receipe_views
+
 from diary import views as diary_views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -32,7 +33,14 @@ urlpatterns = [
     path(r'api/diary/', include('diary.urls')),
     path(r'api/logout/',user_views.logout),
     path(r'api/receipe/lebensmittels',receipe_views.getLebensmittel),
+    path(r'api/receipe/getLebensmittelPagination/',receipe_views.getLebensmittelPagination),
+    path(r'api/receipe/getHandicapPagination/',receipe_views.getHandicapPagination),
     path(r'api/receipe/getSymptoms/',receipe_views.getSymptoms),
+    path(r'api/receipe/searchRezepte/',receipe_views.searchRezepte),
+    path(r'api/receipe/getLebensmittelById/<int:lebensmittelId>',receipe_views.getLebensmittelById),
+    path(r'api/receipe/getHandicapById/<int:handicapId>',receipe_views.getHandicapById),
+    path(r'api/receipe/createUpdateLebensmittel/',receipe_views.createUpdateLebensmittel),
+    path(r'api/receipe/createUpdateHandicap/',receipe_views.createUpdateHandicap),
     path(r'api/receipe/getHandicap/',receipe_views.getHandicap),
     path(r'api/receipe/get/id/<int:receipeid>', receipe_views.getRezepteById),
     path(r'api/receipe/get/all',receipe_views.getAllRezepte),

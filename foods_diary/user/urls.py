@@ -1,12 +1,21 @@
 from django.urls import path
 
-from .views import StripeAuthorizeView, StripeAuthorizeCallbackView, user, PersonDetailView, UserChargeView, createUser, deleteUser, getAllUser, getCurrentUer, updateUserProfile, csrf
+from .views import StripeAuthorizeView, StripeAuthorizeCallbackView, user, getFAQById,getAllFAQ,deleteFAQ, PersonDetailView,searchUser, UserChargeView, createUser, deleteUser, getAllUser, getCurrentUer, updateUserProfile,getUserChatMessages, csrf, appendUserChat, saveFAQ
 
 
 urlpatterns = [
   path('', getAllUser),
   path('updateProfile/', updateUserProfile),
+  path('appendUserChat/', appendUserChat),
+  path('saveFAQ/', saveFAQ),
+  path('getFAQById/<int:faqid>', getFAQById),
+  path('faq/all', getAllFAQ),
+  path('faq/delete/<int:faqid>', deleteFAQ),
+
+  path('getUserChatMessages/', getUserChatMessages),
+  path('searchUser/', searchUser),
   path('getCurrentUer/', getCurrentUer),
+  path('searchPersons/', getCurrentUer),
   path('csrf/', csrf),
   path('<int:userid>/', user),
   path('createUser', createUser),

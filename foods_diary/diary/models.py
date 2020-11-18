@@ -1,7 +1,8 @@
 from django.db import models
 
 from user.models import Person;
-from receipe.models import Lebensmittel;
+from receipe.models import Lebensmittel, Symptom;
+
 
 
 class Mahlzeiten(models.Model):
@@ -32,7 +33,11 @@ class Buch(models.Model):
     person_id = models.ForeignKey(Person, on_delete=models.DO_NOTHING, db_column='person_id')
     mahlzeiten_id = models.ForeignKey(Mahlzeiten, on_delete=models.DO_NOTHING, db_column='mahlzeiten_id')
     emotion_id = models.ForeignKey(Emotion, on_delete=models.DO_NOTHING, db_column='emotion_id')
-    uhrzeit = models.TextField()
+    uhrzeit = models.DateTimeField()
+    buch_type = models.TextField()
+    author=models.IntegerField()
+
+
     updated = models.IntegerField()
 
 
@@ -41,12 +46,14 @@ class Buch(models.Model):
 
     class Meta:
         db_table = "buch"
-        ordering = ['-updated']
+        ordering = ['-uhrzeit']
 
 class BuchLebensmittel(models.Model):
     id = models.IntegerField(db_column='id', primary_key=True)
-    buchId = models.ForeignKey(Buch, on_delete=models.DO_NOTHING, db_column='buch_id')
+    buchId = models.ForeignKey(Buch, on_delete=models.DO_NOTHING, db_column='buch_id',related_name='buch_lebensmittel')
     lebensmittelId = models.ForeignKey(Lebensmittel, on_delete=models.DO_NOTHING, db_column='lebensmittel_id')
+    nutrition = models.TextField(db_column='nutrition')
+
 
     # quantity
     menge = models.CharField(
@@ -59,3 +66,13 @@ class BuchLebensmittel(models.Model):
     class Meta:
         unique_together = (("buchId", "lebensmittelId"),)
         db_table = "buch_has_lebensmittel"
+
+
+class BuchSymptome(models.Model):
+    id = models.IntegerField( db_column='id', primary_key=True)
+    buchId = models.ForeignKey(Buch, on_delete=models.DO_NOTHING, db_column='buch_id',related_name='buch_symptom')
+    symptomeId = models.ForeignKey(Symptom, on_delete=models.DO_NOTHING, db_column='symptome_id')
+
+    class Meta:
+        unique_together = (("buchId", "symptomeId"),)
+        db_table = "buch_has_symptome"

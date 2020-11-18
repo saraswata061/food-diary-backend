@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import getMahlzeiten, getEmotion, getAllBuch, getBuchById, updateDiary, createDiary, deleteBuch
+from .views import getMahlzeiten, getEmotion, getAllBuch, getBuchById, updateDiary, createDiary, deleteBuch,searchDiary
 
 
 urlpatterns = [
@@ -11,5 +11,6 @@ urlpatterns = [
     path(r'updateDiary/<int:buchid>', updateDiary),
     path(r'deleteDiary/<int:buchid>', deleteBuch),
     path(r'createDiary/', createDiary),
+    path(r'searchDiary/',searchDiary),
 
 ]
