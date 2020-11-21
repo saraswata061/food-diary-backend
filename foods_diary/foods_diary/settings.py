@@ -25,7 +25,7 @@ SECRET_KEY = 'bpkwsc3q+-ip-a@hgvgv8l4%#rlsp75ah3d7c^%l^k%ct0myd4'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost']
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['user.authentication.FoodDiaryAuthentication'],
@@ -63,6 +63,8 @@ MIDDLEWARE = [
 
 CORS_ORIGIN_ALLOW_ALL = True # If this is used then `CORS_ORIGIN_WHITELIST` will not have any effect
 CORS_ALLOW_CREDENTIALS = True
+
+
 
 
 ROOT_URLCONF = 'foods_diary.urls'

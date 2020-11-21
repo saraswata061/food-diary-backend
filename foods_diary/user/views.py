@@ -4,7 +4,7 @@ from user.models import Person, PersonSymptome, PersonHandicap;
 from user.models import StripePaymentDetail;
 from django.http import JsonResponse
 from user.models import ClientProfile;
-from user.models import CoachProfile;
+from user.models import CoachProfile, CoachingRequest;
 from user.models import UserChatHistory, FAQ, FAQAnswer;
 from receipe.models import Lebensmittel, Handicap, Symptom
 from receipe.views import getHandcapFoodSuggestion
@@ -344,27 +344,63 @@ def getCurrentUer(request):
 
 @api_view(["GET"])
 def getAllUser(request):
-    persons = Person.objects.all()
-    role = request.GET.get('role', "all")
+    persons = Person.objects.filter()
+    page = request.GET.get('page', "")
     personResult = {}
     personlList = []
+    currentUserRole = getCurrentUserInfo(request)['role']
+    currentUserId = getCurrentUserInfo(request)['user_id']
+    currentUser = Person.objects.get(id=currentUserId)
+    allowedMsgToUser = []
+    coachingRequests = CoachingRequest.objects.filter()
+
+    if (currentUserRole == "admin"):
+        persons = Person.objects.all()
+
+    if (currentUserRole == "coach"):
+        clientIdList = []
+        #rezeptes = rezeptes.filter(rezepte_symptom__symptomeId__in=symptomList)
+        coachingRequests = coachingRequests.filter(personIdCoach=currentUser)
+
+        if page == "chatroom":
+            coachingRequests = coachingRequests.filter(paymentStatus=True, requestStatus=1)
+            for coachingRequest in coachingRequests:
+                clientIdList.append(coachingRequest.personIdClient.id)
+            persons = persons.filter(id__in=clientIdList)
+        else:
+            for coachingRequest in coachingRequests:
+                clientIdList.append(coachingRequest.personIdClient.id)
+            persons = persons.filter(id__in=clientIdList)
+
+            coachingRequests = coachingRequests.filter(paymentStatus=True, requestStatus=1)
+        for coachingRequest in coachingRequests:
+            allowedMsgToUser.append(coachingRequest.personIdClient.id)
+
+
+    if (currentUserRole == "client"):
+        coachIdList = []
+
+        if page == "chatroom":
+            coachingRequests = coachingRequests.filter(personIdClient=currentUser)
+            coachingRequests = coachingRequests.filter(paymentStatus=True, requestStatus=1)
+            for coachingRequest in coachingRequests:
+                coachIdList.append(coachingRequest.personIdCoach.id)
+            persons = persons.filter(id__in=coachIdList)
+        else:
+            persons = persons.filter(is_user = False, is_coach = True)
+            coachingRequests = coachingRequests.filter(personIdClient=currentUser)
+            coachingRequests = coachingRequests.filter(paymentStatus=True, requestStatus=1)
+            for coachingRequest in coachingRequests:
+                allowedMsgToUser.append(coachingRequest.personIdCoach.id)
+
 
     for person in persons:
         personDict = createPersonResult(person)
 
-        if(role == "all"):
-            personlList.append(personDict)
-        else:
-            if(role == "client"):
-                if(person.is_user == True and person.is_coach == False):
-                    personlList.append(personDict)
-            if (role == "admin"):
-                if (person.is_user == True and person.is_coach == True):
-                    personlList.append(personDict)
-            if (role == "coach"):
-                if (person.is_user == False and person.is_coach == True):
-                    personlList.append(personDict)
+        personlList.append(personDict)
+
     personResult["result"] = personlList;
+    personResult['allowedMsgToUser'] = allowedMsgToUser
 
 
     response = JsonResponse(personResult,safe=False);
@@ -386,14 +422,18 @@ def createPersonResult(person):
     personDict["description"] = person.description;
 
     if person.is_user == 1 and person.is_coach == 0:
+        personDict["role"] = "client"
         personProfile = ClientProfile.objects.filter(person_id=person.id).first()
         if personProfile:
             personDict["profilepic"] = personProfile.profile_pic;
     elif person.is_user == 0 and person.is_coach == 1:
+        personDict["role"] = "coach"
         coachProfile = CoachProfile.objects.filter(person_id=person.id).first()
         if coachProfile:
             personDict["profilepic"] = coachProfile.profile_pic;
             personDict["price"] = coachProfile.price;
+    elif person.is_user == 1 and person.is_coach == 1:
+        personDict["role"] = "admin"
 
     return personDict
 
@@ -429,6 +469,117 @@ def deleteUser(request,userid):
 
     response = JsonResponse({"succeess": True},safe=False);
     #response.set_cookie('fdiarysess', cookie)
+
+    return response
+
+@api_view(["GET"])
+def getCoachingRequests(request,coachid,clientid):
+    personCoach = Person.objects.get(id=coachid)
+    personClient = Person.objects.get(id=clientid)
+    cocahingRequests = CoachingRequest.objects.filter(personIdCoach=personCoach, personIdClient=personClient)
+
+    pageno = request.GET.get('page', 1)
+    paginator = Paginator(cocahingRequests, 5)
+    cocahingRequests = paginator.page(pageno)
+
+    coachResult = {}
+    coachResult["pages"] = paginator.num_pages;
+    coachResult["count"] = paginator.count;
+
+    coachRequestList  = []
+    for cocahingRequest in cocahingRequests:
+        coachingDict = createCoachingReqObj(cocahingRequest)
+        coachRequestList.append(coachingDict)
+
+    coachResult["coachingReqList"] = coachRequestList
+    response = JsonResponse(coachResult, safe=False);
+    return response
+
+@api_view(["GET"])
+def getCoachingRequestsById(request,requestid):
+    cocahingRequests = CoachingRequest.objects.get(id=requestid)
+
+
+
+    coachingDict = createCoachingReqObj(cocahingRequests)
+    response = JsonResponse(coachingDict, safe=False);
+    return response
+
+
+
+
+def createCoachingReqObj(cocahingRequest):
+    coachReqDict = {}
+    coachReqDict['title'] = cocahingRequest.title
+    coachReqDict['description'] = cocahingRequest.description
+    coachReqDict['requestcost'] = cocahingRequest.requestCost
+    coachReqDict['feedbackcoach'] = cocahingRequest.feedbackCoach
+    coachReqDict['ratingcoach'] = cocahingRequest.ratingCoach
+    coachReqDict['feedbackclient'] = cocahingRequest.feedbackClient
+    coachReqDict['ratingclient'] = cocahingRequest.ratingClient
+    coachReqDict['requestStatus'] = cocahingRequest.requestStatus
+    coachReqDict['paymentStatus'] = cocahingRequest.paymentStatus
+    coachReqDict['comments'] = json.loads(cocahingRequest.comments)
+    coachReqDict['id'] = cocahingRequest.id
+
+    return coachReqDict
+@api_view(["POST"])
+def coachingRequest(request):
+    finaldata = {}
+    requestdata = dict(request.POST)
+    for index in requestdata:
+        finaldata[index] = requestdata[index]
+
+    personIdCoach = request.POST.get("person_id_coach")
+    personIdClient = request.POST.get("person_id_client")
+
+    if  finaldata.get("requestcost"):
+        try:
+            value = float( finaldata["requestcost"][0])
+        except ValueError:
+            return JsonResponse({"messageList": ["Request cost can only be integer or float"]}, safe=False,
+                                                status=500);
+
+
+
+    if int(finaldata.get("id")[0]) != 0:
+        coachingRequest = CoachingRequest.objects.get(id=finaldata["id"][0])
+        setattr(coachingRequest, "title", finaldata["title"][0])
+        setattr(coachingRequest, "description", finaldata["description"][0])
+        setattr(coachingRequest, "comments", finaldata["comments"][0])
+        setattr(coachingRequest, "requestCost", finaldata["requestcost"][0])
+        setattr(coachingRequest, "feedbackCoach", finaldata["feedbackcoach"][0])
+        setattr(coachingRequest, "ratingCoach", finaldata["ratingcoach"][0])
+        setattr(coachingRequest, "feedbackClient", finaldata["feedbackclient"][0])
+        setattr(coachingRequest, "ratingClient", finaldata["ratingclient"][0])
+        setattr(coachingRequest, "requestStatus", finaldata["requestStatus"][0])
+
+    else:
+        personCoach = None
+        personClient = None
+        if personIdCoach:
+            personCoach = Person.objects.get(id=int(personIdCoach))
+        if personIdClient:
+            personClient = Person.objects.get(id=int(personIdClient))
+
+        coachingRequest = CoachingRequest(
+            personIdCoach=personCoach,
+            personIdClient=personClient,
+            title=finaldata["title"][0],
+            description=finaldata["description"][0],
+            comments=finaldata["comments"][0],
+            requestCost=finaldata["requestcost"][0],
+            feedbackCoach=finaldata["feedbackcoach"][0],
+            ratingCoach=finaldata["ratingcoach"][0],
+            feedbackClient=finaldata["feedbackclient"][0],
+            ratingClient=finaldata["ratingclient"][0],
+            requestStatus=finaldata["requestStatus"][0]
+        )
+
+    coachingRequest.save()
+
+    response = JsonResponse({}, safe=False);
+    # response.set_cookie('fdiarysess', cookie)
 
     return response
 
@@ -469,18 +620,34 @@ def updateUserProfile(request):
 
 
     if profileType == "client":
+
+        if finaldata.get('zipcode'):
+            if finaldata['zipcode'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Zip Code is required"]}, safe=False, status=500);
+
+        if finaldata.get('mobno'):
+            if finaldata['mobno'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Mobile Number is required"]}, safe=False, status=500);
+            try:
+                value = float(finaldata.get('weight')[0])
+            except ValueError:
+                return JsonResponse({"messageList": ["Mobile Number can only be integer or float"]}, safe=False, status=500);
+
         if finaldata.get('height'):
+            if finaldata['height'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Height is required"]}, safe=False, status=500);
             try:
                 value = int(finaldata.get('height')[0])
             except ValueError:
                 return JsonResponse({"messageList": ["Height can only be integer"]}, safe=False, status=500);
+
         if finaldata.get('weight'):
+            if finaldata['weight'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Weight is required"]}, safe=False, status=500);
             try:
                 value = float(finaldata.get('weight')[0])
             except ValueError:
                 return JsonResponse({"messageList": ["Weight can only be integer or float"]}, safe=False, status=500);
-
-
 
 
 
@@ -527,10 +694,21 @@ def updateUserProfile(request):
         if finaldata.get('zipcode'):
             personProfileObj.plz = finaldata['zipcode'][0]
         if finaldata.get('mobno'):
+            if finaldata['mobno'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Mobile Number is required"]}, safe=False, status=500);
+            try:
+                value = float(finaldata.get('weight')[0])
+            except ValueError:
+                return JsonResponse({"messageList": ["Mobile Number can only be integer or float"]}, safe=False, status=500);
             personProfileObj.telefon = finaldata['mobno'][0]
         if finaldata.get('height'):
+            if finaldata['height'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Height is required"]}, safe=False, status=500);
             personProfileObj.groesse = finaldata['height'][0]
         if finaldata.get('weight'):
+            if finaldata['weight'][0] == 'undefined':
+                return JsonResponse({"messageList": ["Weight is required"]}, safe=False, status=500);
+            personProfileObj.groesse = finaldata['height'][0]
             personProfileObj.gewicht = finaldata['weight'][0]
         if finaldata.get('country'):
             personProfileObj.land = finaldata['country'][0]
@@ -727,8 +905,10 @@ class UserChargeView(View):
         if price == None:
             return JsonResponse({'status': 'error'}, status=500)
 
-        fee_percentage = 10 #person fee is 10 dollar
-        appFee = (json_data['amount'] * 10)/100;
+        fee_percentage = 20 #app fee is 20%
+        appFee = (json_data['amount'] * fee_percentage)/100;
+        payment_type = json_data['payment_type']
+
         try:
             customer = get_or_create_customer(
                 getCurrentUserInfo(request)['email'],
@@ -748,8 +928,12 @@ class UserChargeView(View):
                 chargeString = json.dumps(charge)
                 client = Person.objects.get(id=getCurrentUserInfo(request)['user_id'])
                 coach = Person.objects.get(id=person.id)
-                stripePaymentDetail = StripePaymentDetail(client_id=client, coach_id=coach, payment_detail=chargeString)
-                stripePaymentDetail.save()
+                if payment_type == "coaching":
+                    coachingReq =  CoachingRequest.objects.get(id=json_data['coachrequestid'])
+                    stripePaymentDetail = StripePaymentDetail(client_id=client, coach_id=coach, payment_detail=chargeString, payment_type = payment_type, coaching_id=coachingReq)
+                    stripePaymentDetail.save()
+                    setattr(coachingReq, "paymentStatus", True)
+                    coachingReq.save()
                 return JsonResponse({'status': 'success'}, status=200)
         except stripe.error.StripeError as e:
             return JsonResponse({'status': 'error'}, status=500)

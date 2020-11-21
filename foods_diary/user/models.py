@@ -64,12 +64,35 @@ class ClientProfile(models.Model):
         db_table = "persondaten"
 
 
+class CoachingRequest(models.Model):
+    id = models.AutoField( db_column='id', primary_key=True)
+    personIdCoach = models.ForeignKey(Person, on_delete=models.DO_NOTHING, db_column='person_id_coach',
+                                    related_name='person_id_coach')
+    personIdClient = models.ForeignKey(Person, on_delete=models.DO_NOTHING, db_column='person_id_client',
+                                    related_name='person_id_client')
+    title = models.TextField( db_column='title')
+    description = models.TextField(db_column='description')
+    comments = models.TextField(db_column='comments')
+    requestCost = models.FloatField(db_column='requestcost')
+    feedbackCoach = models.TextField(db_column='feedbackcoach')
+    ratingCoach = models.FloatField(db_column='ratingcoach')
+    feedbackClient = models.TextField(db_column='feedbackclient')
+    ratingClient = models.FloatField(db_column='ratingclient')
+    requestStatus = models.IntegerField(db_column="request_status")
+    paymentStatus = Bit1BooleanField(db_column="payment_status")  # pregnant
+
+    class Meta:
+        db_table = "coaching_request"
+
+
 class StripePaymentDetail(models.Model):
     id = models.AutoField(primary_key=True)
     client_id = models.ForeignKey(Person, on_delete=models.DO_NOTHING,related_name='stripe_client', null=True,db_column='client_id')
     coach_id = models.ForeignKey(Person, on_delete=models.DO_NOTHING,related_name='stripe_coach', null=True,db_column='coach_id')
     payment_detail = models.TextField()
-
+    payment_type = models.TextField()
+    coaching_id = models.ForeignKey(CoachingRequest, on_delete=models.DO_NOTHING, related_name='coaching_request', null=True,
+                                  db_column='coaching_id')
 
     def __str__(self):
         return self.id
@@ -125,6 +148,9 @@ class FAQAnswer(models.Model):
 
     class Meta:
         db_table = "faq_antworten"
+
+
+
 
 
 

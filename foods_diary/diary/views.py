@@ -7,7 +7,7 @@ from diary.models import Mahlzeiten, Emotion, Buch, BuchLebensmittel, BuchSympto
 from django.http import JsonResponse
 from user.models import Person;
 from receipe.models import Lebensmittel, Symptom;
-from user.views import getCurrentUserInfo;
+from user.views import getCurrentUserInfo, generateUserInfo;
 from receipe.views import createLebensmittel;
 import time;
 import os
@@ -304,11 +304,14 @@ def getBuchById(request, buchid):
 
 @api_view(["GET"])
 def getAllBuch(request):
+    clinetid = request.GET.get('clientid', 1)
     buchs = None
     if getCurrentUserInfo(request)['role'] == 'admin':
         buchs = Buch.objects.all()
     elif getCurrentUserInfo(request)['role'] == 'client':
         buchs = Buch.objects.filter(author=getCurrentUserInfo(request)['user_id'])
+    elif getCurrentUserInfo(request)['role'] == 'coach':
+        buchs = Buch.objects.filter(author=clinetid)
 
     pageno = request.GET.get('page', 1)
     paginator = Paginator(buchs, 5)
