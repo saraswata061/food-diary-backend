@@ -318,6 +318,7 @@ def getAllBuch(request):
     buchs = paginator.page(pageno)
 
     buchResult = {}
+    allNutritionList = []
     buchResult["pages"] = paginator.num_pages;
     buchResult["count"] = paginator.count;
     buchlList = []
@@ -325,7 +326,9 @@ def getAllBuch(request):
     for buch in buchs:
         bucheDict = createBuchResponseFromBuchObject(buch)
         buchlList.append(bucheDict)
+        allNutritionList.append(json.dumps(bucheDict['nutrition']))
     buchResult["buchs"] = buchlList;
+    buchResult["nutrition"] = sumNutrition(allNutritionList);
 
     response = JsonResponse(buchResult, safe=False);
     # response.set_cookie('fdiarysess', cookie)
@@ -340,14 +343,18 @@ def searchDiary(request):
     selecteddate = request.GET.get("selectedDate", "")
     endTime = request.GET.get("endTime", "")
 
+    clientid = request.GET.get('clientid', 0)
+
 
     lebensmittelList = [Lebensmittel.objects.get(id=int(i)) for i in lebensmittels.split(',') if i.strip() != ""]
 
     rezeptes = None
     buchs = Buch.objects.filter()
 
-
-    buchs = buchs.filter(author=getCurrentUserInfo(request)['user_id'])
+    if clientid == 0:
+        buchs = buchs.filter(author=getCurrentUserInfo(request)['user_id'])
+    else:
+        buchs = buchs.filter(author=clientid)
 
     if len(lebensmittelList) > 0:
         buchs = buchs.filter(buch_lebensmittel__lebensmittelId__in=lebensmittelList)
@@ -358,15 +365,17 @@ def searchDiary(request):
         buchs = buchs.filter(uhrzeit__gte=selecteddateObj)
         buchs = buchs.filter(uhrzeit__lte=selectedenddateObj)
 
-
+    allNutritionList = []
     buchlList = []
     buchResult = {}
 
     for buch in buchs:
         rezepteDict = createBuchResponseFromBuchObject(buch)
+        allNutritionList.append(json.dumps(rezepteDict['nutrition']))
         buchlList.append(rezepteDict)
     buchResult["buchs"] = buchlList;
     buchResult["count"] = len(buchlList);
+    buchResult["nutrition"] = sumNutrition(allNutritionList);
     response = JsonResponse(buchResult, safe=False);
     # response.set_cookie('fdiarysess', cookie)
 

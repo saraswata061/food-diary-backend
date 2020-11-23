@@ -238,13 +238,21 @@ def searchUser(request):
 def getUserChatMessages(request):
     personIdOne = request.POST.get("person_id_one")
     personIdTwo = request.POST.get("person_id_two")  # currentuser
-    today = date.today()
+    dateString = request.POST.get("date")
+
+    dateObj = None
+    if dateString:
+        dateString = dateString + " 00:00:00"
+        dateObj = datetime.strptime(dateString, "%Y-%m-%d %H:%M:%S")
+    else:
+        dateObj = date.today()
+
     messageList = []
     if personIdOne:
         personOne = Person.objects.get(id=int(personIdOne))
         personTwo = Person.objects.get(id=int(personIdTwo))
         userChats = UserChatHistory.objects.filter(
-            Q(date=today, personIdOne=personOne, personIdTwo=personTwo) | Q(date=today, personIdOne=personTwo,
+            Q(date=dateObj, personIdOne=personOne, personIdTwo=personTwo) | Q(date=dateObj, personIdOne=personTwo,
                                                                             personIdTwo=personOne))
 
         for userChat in userChats:
@@ -477,6 +485,18 @@ def getCoachingRequests(request,coachid,clientid):
     personCoach = Person.objects.get(id=coachid)
     personClient = Person.objects.get(id=clientid)
     cocahingRequests = CoachingRequest.objects.filter(personIdCoach=personCoach, personIdClient=personClient)
+
+    requeststatus = request.GET.get('requeststatus', '0')
+    paymentstatus = request.GET.get('paymentstatus', '0')
+
+    if(paymentstatus == '1'):
+        cocahingRequests = cocahingRequests.filter(paymentStatus = False)
+
+    if (paymentstatus == '2'):
+        cocahingRequests = cocahingRequests.filter(paymentStatus=True)
+
+
+    cocahingRequests = cocahingRequests.filter(requestStatus = requeststatus)
 
     pageno = request.GET.get('page', 1)
     paginator = Paginator(cocahingRequests, 5)
@@ -936,7 +956,7 @@ class UserChargeView(View):
                     coachingReq.save()
                 return JsonResponse({'status': 'success'}, status=200)
         except stripe.error.StripeError as e:
-            return JsonResponse({'status': 'error'}, status=500)
+            return JsonResponse({"messageList": ["Payment Failed"]}, safe=False, status=500);
 
 def get_or_create_customer(email, token, stripe_access_token, stripe_account):
     stripe.api_key = stripe_access_token

@@ -585,12 +585,16 @@ def getSymptoms(request):
 
 @api_view(["GET"])
 def getAllRezepte(request):
+    rezeptes = Rezepte.objects.all()
     if getCurrentUserInfo(request)['role'] == 'admin':
-        rezeptes = Rezepte.objects.all()
+        #rezeptes = Rezepte.objects.all()
+        pass
     elif getCurrentUserInfo(request)['role'] == 'client':
-        rezeptes = Rezepte.objects.filter(isPublic=True)
+        #rezeptes = Rezepte.objects.filter(isPublic=True)
+        pass
     else:
-        rezeptes = Rezepte.objects.filter(Q(author=getCurrentUserInfo(request)['user_id']) | Q(isPublic=True))
+        #rezeptes = Rezepte.objects.filter(Q(author=getCurrentUserInfo(request)['user_id']) | Q(isPublic=True))
+        pass
     pageno = request.GET.get('page', 1)
     paginator = Paginator(rezeptes, 5)
     rezeptes = paginator.page(pageno)
@@ -627,9 +631,11 @@ def searchRezepte(request):
     if getCurrentUserInfo(request)['role'] == 'admin':
         pass
     elif getCurrentUserInfo(request)['role'] == 'client':
-        rezeptes = rezeptes.filter(isPublic=True)
+        #rezeptes = rezeptes.filter(isPublic=True)
+        pass
     else:
-        rezeptes = rezeptes.filter(Q(author=getCurrentUserInfo(request)['user_id']) | Q(isPublic=True))
+        #rezeptes = rezeptes.filter(Q(author=getCurrentUserInfo(request)['user_id']) | Q(isPublic=True))
+        pass
 
 
 
