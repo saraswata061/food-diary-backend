@@ -25,7 +25,7 @@ SECRET_KEY = 'bpkwsc3q+-ip-a@hgvgv8l4%#rlsp75ah3d7c^%l^k%ct0myd4'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost']
+ALLOWED_HOSTS = ['localhost','162.213.250.124']
 #'DEFAULT_AUTHENTICATION_CLASSES': ['user.authentication.FoodDiaryAuthentication'],
 #'DEFAULT_PERMISSION_CLASSES': [ 'user.authentication.IsAuthenticated',],
 REST_FRAMEWORK = {
