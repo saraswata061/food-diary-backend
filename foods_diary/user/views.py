@@ -346,8 +346,7 @@ def generateUserInfo(user_id):
 @api_view(["GET"])
 def getCurrentUer(request):
     auth = get_authorization_header(request).split()
-    
-     try:
+    try:
         try:
             auth_decoded = base64.b64decode(auth[1]).decode('utf-8')
         except UnicodeDecodeError:
