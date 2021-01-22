@@ -27,6 +27,7 @@ import re
 from datetime import date
 from datetime import datetime
 from django.middleware.csrf import get_token
+import base64
 
 
 
@@ -344,6 +345,35 @@ def generateUserInfo(user_id):
 
 @api_view(["GET"])
 def getCurrentUer(request):
+    auth = get_authorization_header(request).split()
+    
+     try:
+        try:
+            auth_decoded = base64.b64decode(auth[1]).decode('utf-8')
+        except UnicodeDecodeError:
+            auth_decoded = base64.b64decode(auth[1]).decode('latin-1')
+        auth_parts = auth_decoded.partition(':')
+    except (TypeError, UnicodeDecodeError, binascii.Error):
+        pass
+
+    email, password = auth_parts[0], auth_parts[2]
+    try:
+        person = Person.objects.get(email=email, pwd=hashlib.md5(password.encode('utf-8')).hexdigest())
+        request.session['email'] = person.email
+        request.session['password'] = person.pwd
+        request.session['user_id'] = person.id
+        request.session['authenticated'] = True
+        role = "";
+        if person.is_user == 1 and person.is_coach == 0:
+            role = "client";
+        if person.is_user == 0 and person.is_coach == 1:
+            role = "coach";
+        if person.is_user == 1 and person.is_coach == 1:
+            role = "admin";
+        request.session['role'] = role
+
+    except:
+        pass
     personDict = generateUserInfo(getCurrentUserInfo(request)['user_id'])
     response = JsonResponse(personDict,safe=False);
         #response.set_cookie('fdiarysess', cookie)

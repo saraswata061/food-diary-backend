@@ -26,10 +26,11 @@ SECRET_KEY = 'bpkwsc3q+-ip-a@hgvgv8l4%#rlsp75ah3d7c^%l^k%ct0myd4'
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost']
-
+#'DEFAULT_AUTHENTICATION_CLASSES': ['user.authentication.FoodDiaryAuthentication'],
+#'DEFAULT_PERMISSION_CLASSES': [ 'user.authentication.IsAuthenticated',],
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ['user.authentication.FoodDiaryAuthentication'],
-    'DEFAULT_PERMISSION_CLASSES': [ 'user.authentication.IsAuthenticated',],
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': [],
 }
 
 # Application definition
