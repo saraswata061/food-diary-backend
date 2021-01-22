@@ -29,8 +29,8 @@ ALLOWED_HOSTS = ['localhost','162.213.250.124']
 #'DEFAULT_AUTHENTICATION_CLASSES': ['user.authentication.FoodDiaryAuthentication'],
 #'DEFAULT_PERMISSION_CLASSES': [ 'user.authentication.IsAuthenticated',],
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [],
-    'DEFAULT_PERMISSION_CLASSES': [],
+    'DEFAULT_AUTHENTICATION_CLASSES': ['user.authentication.FoodDiaryAuthentication']],
+    'DEFAULT_PERMISSION_CLASSES': [ 'user.authentication.IsAuthenticated',],
 }
 
 # Application definition
