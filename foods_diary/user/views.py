@@ -28,6 +28,7 @@ from datetime import date
 from datetime import datetime
 from django.middleware.csrf import get_token
 import base64
+from rest_framework import HTTP_HEADER_ENCODING, exceptions
 
 
 
@@ -342,6 +343,17 @@ def generateUserInfo(user_id):
             personDict["bday"] = coachProfile.bday
     return personDict
 
+def get_authorization_header(request):
+    """
+    Return request's 'Authorization:' header, as a bytestring.
+
+    Hide some test client ickyness where the header can be unicode.
+    """
+    auth = request.META.get('HTTP_AUTHORIZATION', b'')
+    if isinstance(auth, str):
+        # Work around django test client oddness
+        auth = auth.encode(HTTP_HEADER_ENCODING)
+    return auth
 
 @api_view(["GET"])
 def getCurrentUer(request):
